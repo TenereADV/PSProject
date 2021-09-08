@@ -27,7 +27,7 @@ $label.Text = 'Hold CTRL and click which attributes to add:'
 $form.Controls.Add($label)
 $listBox = New-Object System.Windows.Forms.Listbox
 $listBox.Location = New-Object System.Drawing.Point(10,50)
-$listBox.Size = New-Object System.Drawing.Size(260,20)
+$listBox.Size = New-Object System.Drawing.Size(260,50)
 
 $listBox.SelectionMode = 'MultiExtended'
 
@@ -116,6 +116,7 @@ kicking me out of the loop.  I then changed the Until to a While, and it worked 
 
 <#Now I need to figure out how to select only the variable/arrays that were chosen by the user and add them to the
 New-Aduser command #>    
+
 
 
 

@@ -1,11 +1,6 @@
 ﻿##Prompts the user for the new employee's information to populate AD fields.##
 ##Some simple error handling included.  This script assumes the user will try to enter correct data.##
 
-Do{
-$version = Read-Host "Would you like to create a simple or detailed account?"
-
-If($version -eq "simple"){
-$repeat2 = $false
 #Function used to allow assignment of a department.
 Function Dept-Menu
 {
@@ -18,6 +13,12 @@ Function Dept-Menu
     Write-Host "4: Research"
     Write-Host "5: Sales"
 }
+
+Do{
+$version = Read-Host "Would you like to create a simple or detailed account?"
+
+If($version -eq "simple"){
+$repeat2 = $false
 
 $First = Read-Host "Enter the employee's first name"
 $Last = Read-Host "Enter the employees's last name"
@@ -94,9 +95,9 @@ $newuser = @{}
 #Default attributes
 $newuser.givenname = Read-Host "Enter the employee's first name"
 $newuser.surname = Read-Host "Enter the employees's last name"
-$newuser.name = $First + " " + $Last
-$newuser.displayname = $Name
-$newuser.samaccountname = $First
+$newuser.name = $newuser.givenname + " " + $newuser.surname
+$newuser.displayname = $newuser.name
+$newuser.samaccountname = $newuser.givenname
 
 #Displays a dialog box for the user to select the attributes to add
 Add-Type -AssemblyName System.Windows.Forms
@@ -166,9 +167,277 @@ if($x -contains "city"){
 }If($x -contains "company"){
     $newuser.company = Read-Host "Enter employee's company"
 <#Country requires a two-letter country code to work.  Need to either show user the options or search based on their input.
-I'm going to try the search their input method first#>
-}If($x -contains "country"){
-    $newuser.country = Read-Host "Enter employee's country"
+I'm going to try the search their input method first.  This one was a more compilcated than I thought it was going to be.
+New-ADUser requires the country to be inserted in XX format, not just as a typical string (ex. FR for France).  
+First I created a hashtable with all available XX as the keys and the spelled out countries as the values.  I then used a
+Do-While loop until the .ContainsValue came back true.  Error handling asks the user to repeat until a correct country
+is added.  User can also display a full list for reference.#>
+If($x -contains "country"){
+$CountryLookup = @{
+    "AD"="ANDORRA"
+    "AE"="UNITED ARAB EMIRATES"
+    "AF"="AFGHANISTAN"
+    "AG"="ANTIGUA AND BARBUDA"
+    "AI"="ANGUILLA"
+    "AL"="ALBANIA"
+    "AM"="ARMENIA"
+    "AO"="ANGOLA"
+    "AQ"="ANTARCTICA"
+    "AR"="ARGENTINA"
+    "AS"="AMERICAN SAMOA"
+    "AT"="AUSTRIA"
+    "AU"="AUSTRALIA"
+    "AW"="ARUBA"
+    "AX"="ÅLAND ISLANDS"
+    "AZ"="AZERBAIJAN"
+    "BA"="BOSNIA AND HERZEGOVINA"
+    "BB"="BARBADOS"
+    "BD"="BANGLADESH"
+    "BE"="BELGIUM"
+    "BF"="BURKINA FASO"
+    "BG"="BULGARIA"
+    "BH"="BAHRAIN"
+    "BI"="BURUNDI"
+    "BJ"="BENIN"
+    "BL"="SAINT BARTHÉLEMY"
+    "BM"="BERMUDA"
+    "BN"="BRUNEI DARUSSALAM"
+    "BO"="BOLIVIA, PLURINATIONAL STATE OF"
+    "BQ"="BONAIRE, SINT EUSTATIUS AND SABA"
+    "BR"="BRAZIL"
+    "BS"="BAHAMAS"
+    "BT"="BHUTAN"
+    "BV"="BOUVET ISLAND"
+    "BW"="BOTSWANA"
+    "BY"="BELARUS"
+    "BZ"="BELIZE"
+    "CA"="CANADA"
+    "CC"="COCOS (KEELING) ISLANDS"
+    "CD"="CONGO, THE DEMOCRATIC REPUBLIC OF THE"
+    "CF"="CENTRAL AFRICAN REPUBLIC"
+    "CG"="CONGO"
+    "CH"="SWITZERLAND"
+    "CI"="CÔTE D'IVOIRE"
+    "CK"="COOK ISLANDS"
+    "CL"="CHILE"
+    "CM"="CAMEROON"
+    "CN"="CHINA"
+    "CO"="COLOMBIA"
+    "CR"="COSTA RICA"
+    "CU"="CUBA"
+    "CV"="CAPE VERDE"
+    "CW"="CURAÇAO"
+    "CX"="CHRISTMAS ISLAND"
+    "CY"="CYPRUS"
+    "CZ"="CZECH REPUBLIC"
+    "DE"="GERMANY"
+    "DJ"="DJIBOUTI"
+    "DK"="DENMARK"
+    "DM"="DOMINICA"
+    "DO"="DOMINICAN REPUBLIC"
+    "DZ"="ALGERIA"
+    "EC"="ECUADOR"
+    "EE"="ESTONIA"
+    "EG"="EGYPT"
+    "EH"="WESTERN SAHARA"
+    "ER"="ERITREA"
+    "ES"="SPAIN"
+    "ET"="ETHIOPIA"
+    "FI"="FINLAND"
+    "FJ"="FIJI"
+    "FK"="FALKLAND ISLANDS (MALVINAS)"
+    "FM"="MICRONESIA, FEDERATED STATES OF"
+    "FO"="FAROE ISLANDS"
+    "FR"="FRANCE"
+    "GA"="GABON"
+    "GB"="UNITED KINGDOM"
+    "GD"="GRENADA"
+    "GE"="GEORGIA"
+    "GF"="FRENCH GUIANA"
+    "GG"="GUERNSEY"
+    "GH"="GHANA"
+    "GI"="GIBRALTAR"
+    "GL"="GREENLAND"
+    "GM"="GAMBIA"
+    "GN"="GUINEA"
+    "GP"="GUADELOUPE"
+    "GQ"="EQUATORIAL GUINEA"
+    "GR"="GREECE"
+    "GS"="SOUTH GEORGIA AND THE SOUTH SANDWICH ISLANDS"
+    "GT"="GUATEMALA"
+    "GU"="GUAM"
+    "GW"="GUINEA-BISSAU"
+    "GY"="GUYANA"
+    "HK"="HONG KONG"
+    "HM"="HEARD ISLAND AND MCDONALD ISLANDS"
+    "HN"="HONDURAS"
+    "HR"="CROATIA"
+    "HT"="HAITI"
+    "HU"="HUNGARY"
+    "ID"="INDONESIA"
+    "IE"="IRELAND"
+    "IL"="ISRAEL"
+    "IM"="ISLE OF MAN"
+    "IN"="INDIA"
+    "IO"="BRITISH INDIAN OCEAN TERRITORY"
+    "IQ"="IRAQ"
+    "IR"="IRAN, ISLAMIC REPUBLIC OF"
+    "IS"="ICELAND"
+    "IT"="ITALY"
+    "JE"="JERSEY"
+    "JM"="JAMAICA"
+    "JO"="JORDAN"
+    "JP"="JAPAN"
+    "KE"="KENYA"
+    "KG"="KYRGYZSTAN"
+    "KH"="CAMBODIA"
+    "KI"="KIRIBATI"
+    "KM"="COMOROS"
+    "KN"="SAINT KITTS AND NEVIS"
+    "KP"="KOREA, DEMOCRATIC PEOPLE'S REPUBLIC OF"
+    "KR"="KOREA, REPUBLIC OF"
+    "KW"="KUWAIT"
+    "KY"="CAYMAN ISLANDS"
+    "KZ"="KAZAKHSTAN"
+    "LA"="LAO PEOPLE'S DEMOCRATIC REPUBLIC"
+    "LB"="LEBANON"
+    "LC"="SAINT LUCIA"
+    "LI"="LIECHTENSTEIN"
+    "LK"="SRI LANKA"
+    "LR"="LIBERIA"
+    "LS"="LESOTHO"
+    "LT"="LITHUANIA"
+    "LU"="LUXEMBOURG"
+    "LV"="LATVIA"
+    "LY"="LIBYA"
+    "MA"="MOROCCO"
+    "MC"="MONACO"
+    "MD"="MOLDOVA, REPUBLIC OF"
+    "ME"="MONTENEGRO"
+    "MF"="SAINT MARTIN (FRENCH PART)"
+    "MG"="MADAGASCAR"
+    "MH"="MARSHALL ISLANDS"
+    "MK"="MACEDONIA, THE FORMER YUGOSLAV REPUBLIC OF"
+    "ML"="MALI"
+    "MM"="MYANMAR"
+    "MN"="MONGOLIA"
+    "MO"="MACAO"
+    "MP"="NORTHERN MARIANA ISLANDS"
+    "MQ"="MARTINIQUE"
+    "MR"="MAURITANIA"
+    "MS"="MONTSERRAT"
+    "MT"="MALTA"
+    "MU"="MAURITIUS"
+    "MV"="MALDIVES"
+    "MW"="MALAWI"
+    "MX"="MEXICO"
+    "MY"="MALAYSIA"
+    "MZ"="MOZAMBIQUE"
+    "NA"="NAMIBIA"
+    "NC"="NEW CALEDONIA"
+    "NE"="NIGER"
+    "NF"="NORFOLK ISLAND"
+    "NG"="NIGERIA"
+    "NI"="NICARAGUA"
+    "NL"="NETHERLANDS"
+    "NO"="NORWAY"
+    "NP"="NEPAL"
+    "NR"="NAURU"
+    "NU"="NIUE"
+    "NZ"="NEW ZEALAND"
+    "OM"="OMAN"
+    "PA"="PANAMA"
+    "PE"="PERU"
+    "PF"="FRENCH POLYNESIA"
+    "PG"="PAPUA NEW GUINEA"
+    "PH"="PHILIPPINES"
+    "PK"="PAKISTAN"
+    "PL"="POLAND"
+    "PM"="SAINT PIERRE AND MIQUELON"
+    "PN"="PITCAIRN"
+    "PR"="PUERTO RICO"
+    "PS"="PALESTINE, STATE OF"
+    "PT"="PORTUGAL"
+    "PW"="PALAU"
+    "PY"="PARAGUAY"
+    "QA"="QATAR"
+    "RE"="RÉUNION"
+    "RO"="ROMANIA"
+    "RS"="SERBIA"
+    "RU"="RUSSIAN FEDERATION"
+    "RW"="RWANDA"
+    "SA"="SAUDI ARABIA"
+    "SB"="SOLOMON ISLANDS"
+    "SC"="SEYCHELLES"
+    "SD"="SUDAN"
+    "SE"="SWEDEN"
+    "SG"="SINGAPORE"
+    "SH"="SAINT HELENA, ASCENSION AND TRISTAN DA CUNHA"
+    "SI"="SLOVENIA"
+    "SJ"="SVALBARD AND JAN MAYEN"
+    "SK"="SLOVAKIA"
+    "SL"="SIERRA LEONE"
+    "SM"="SAN MARINO"
+    "SN"="SENEGAL"
+    "SO"="SOMALIA"
+    "SR"="SURINAME"
+    "SS"="SOUTH SUDAN"
+    "ST"="SAO TOME AND PRINCIPE"
+    "SV"="EL SALVADOR"
+    "SX"="SINT MAARTEN (DUTCH PART)"
+    "SY"="SYRIAN ARAB REPUBLIC"
+    "SZ"="SWAZILAND"
+    "TC"="TURKS AND CAICOS ISLANDS"
+    "TD"="CHAD"
+    "TF"="FRENCH SOUTHERN TERRITORIES"
+    "TG"="TOGO"
+    "TH"="THAILAND"
+    "TJ"="TAJIKISTAN"
+    "TK"="TOKELAU"
+    "TL"="TIMOR-LESTE"
+    "TM"="TURKMENISTAN"
+    "TN"="TUNISIA"
+    "TO"="TONGA"
+    "TR"="TURKEY"
+    "TT"="TRINIDAD AND TOBAGO"
+    "TV"="TUVALU"
+    "TW"="TAIWAN, PROVINCE OF CHINA"
+    "TZ"="TANZANIA, UNITED REPUBLIC OF"
+    "UA"="UKRAINE"
+    "UG"="UGANDA"
+    "UM"="UNITED STATES MINOR OUTLYING ISLANDS"
+    "US"="UNITED STATES"
+    "UY"="URUGUAY"
+    "UZ"="UZBEKISTAN"
+    "VA"="HOLY SEE (VATICAN CITY STATE)"
+    "VC"="SAINT VINCENT AND THE GRENADINES"
+    "VE"="VENEZUELA, BOLIVARIAN REPUBLIC OF"
+    "VG"="VIRGIN ISLANDS, BRITISH"
+    "VI"="VIRGIN ISLANDS, U.S."
+    "VN"="VIET NAM"
+    "VU"="VANUATU"
+    "WF"="WALLIS AND FUTUNA"
+    "WS" = "SAMOA"
+    "YE"="YEMEN"
+    "YT"="MAYOTTE"
+    "ZA"="SOUTH AFRICA"
+    "ZM"="ZAMBIA"
+    "ZW"="ZIMBABWE"
+}
+
+Do{
+$repeat3 = $false
+    $country = Read-Host "Enter employee's country"
+  If($country -eq "help"){
+    $CountryLookup.GetEnumerator() |sort value
+  }Else{
+        If($CountryLookup.ContainsValue($country.toupper()) -eq $false){
+         Write-Host "Please enter a correct country name. For a full list of choices, type 'help'."
+}
+}
+}While ($CountryLookup.ContainsValue($country.toupper()) -eq $false)
+
+
 }If($x -contains "description"){
     $newuser.description = Read-Host "Enter a short employee description"
 }If($x -contains "division"){
@@ -239,18 +508,19 @@ While ($repeat -eq $true)
 
 #If statement to change the user's selection to a department
 If($Selection -eq "1"){
-    $Dept = "Development"}
+    $newuser.department = "Development"}
 Elseif ($selection -eq "2"){
-    $Dept = "IT"}
+    $newuser.department = "IT"}
 Elseif ($selection -eq "3"){
-    $Dept = "Managers"}
+    $newuser.department = "Managers"}
 Elseif ($selection -eq "4"){
-    $Dept = "Research"}
+    $newuser.department = "Research"}
 Elseif ($selection -eq "5"){
-    $Dept = "Sales"}
+    $newuser.department = "Sales"}
 
 #Assigns department to the employee's path
-$Path = "ou=$Dept,dc=adatum,dc=com"
+$dept = $newuser.department
+$newuser.Path = "ou=$dept,dc=adatum,dc=com"
 
 #Inserts blank line for formatting.
 Write-Host ""
@@ -277,7 +547,7 @@ Write-Host "";"Temporary password is 'Pa55w.rd'.  The employee will be forced to
 
 $repeat2 = $false
 
-Get-ADUser -Identity $SamName -Properties *
+Get-ADUser -Identity $newuser.samaccountname -Properties *
 
 
 
@@ -290,16 +560,16 @@ Get-ADUser -Identity $SamName -Properties *
     $repeat2 = $true
     }
 #End of Do statement from beginning
- }While ($repeat2 -eq $true)
+ }}While ($repeat2 -eq $true)
 
 #Clears the NewUser hashtable for the next use
-$newuser.clear()
+#$newuser.clear()
 
 
 
 
 #Remove-ADUser -Identity test
-#get-aduser -filter "givenname -like 'test'" | remove-aduser
+#get-aduser -filter "givenname -like 'test'" | remove-aduser; $newuser.clear()
 
 
 
