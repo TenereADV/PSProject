@@ -1,6 +1,14 @@
 ﻿##Prompts the user for the new employee's information to populate AD fields.##
 ##Some simple error handling included.  This script assumes the user will try to enter correct data.##
 
+
+Do{
+Write-Host ""
+$version = Read-Host "Would you like to create a simple or detailed account?"
+
+If($version -eq "simple"){
+$repeat2 = $false
+
 #Function used to allow assignment of a department.
 Function Dept-Menu
 {
@@ -14,17 +22,29 @@ Function Dept-Menu
     Write-Host "5: Sales"
 }
 
+<#This script was similar to the Manager script I made earlier.  It checks if the employee name that is entered matches a current employee
+and lets the user know either way.  Since I resued the Manager script, troubleshooting was much easier this time around.#>
+
 Do{
-$version = Read-Host "Would you like to create a simple or detailed account?"
-
-If($version -eq "simple"){
-$repeat2 = $false
-
+Write-Host ""
 $First = Read-Host "Enter the employee's first name"
 $Last = Read-Host "Enter the employees's last name"
 $Name = $First + " " + $Last
 $Dname = $Name
 $SamName = $First
+$confirm = "n"
+    
+    $testname = Get-ADUser -Filter "name -like '*$name*'"
+    If($testname.name -eq $Name){
+        Write-Host "";"User already exists. Please check your spelling and try again.";""
+        $confirm = "n"}
+    Else{$testname.count -eq "0" | Out-Null
+        Write-Host "";"User is not in the database. Proceed."
+        $confirm = "y"}
+
+}while ($confirm -eq "n")
+  
+    
 
 #Switch used to assign a department. 
 Do{
@@ -82,13 +102,33 @@ new-aduser -GivenName $First -Surname $Last -name $name -DisplayName $Dname -Sam
 
 Write-Host "";"Temporary password is 'Pa55w.rd'.  The employee will be forced to change it upon first login."
 
-
 Get-ADUser -Identity $SamName -Properties department
+
+#Removes test user.
+get-aduser -filter "samaccountname -like '$samname'" | remove-aduser
+
+
+
+
 
 #End of simple/detailed If statement. 
 ################################## Start of detailed ADUser details ###################################
 
 }ElseIf($version -eq 'detailed'){
+Write-Host ""
+
+#Function used to allow assignment of a department.
+Function Dept-Menu
+{
+    Param (
+    )
+    Write-Host ""
+    Write-Host "1: Development"
+    Write-Host "2: IT"
+    Write-Host "3: Managers"
+    Write-Host "4: Research"
+    Write-Host "5: Sales"
+}
 
 $newuser = @{}
 
@@ -171,8 +211,10 @@ I'm going to try the search their input method first.  This one was a more compi
 New-ADUser requires the country to be inserted in XX format, not just as a typical string (ex. FR for France).  
 First I created a hashtable with all available XX as the keys and the spelled out countries as the values.  I then used a
 Do-While loop until the .ContainsValue came back true.  Error handling asks the user to repeat until a correct country
-is added.  User can also display a full list for reference.#>
-If($x -contains "country"){
+is added.  User can also display a full list for reference.  Had a Do-While loop that keept looping when it wasn't supposed to.
+Kept getting an error that I was missing a curly bracket; I thought it was after the Do, but it was actually the ending curly bracket
+associated with the If statement for City.#>
+}If($x -contains "country"){
 $CountryLookup = @{
     "AD"="ANDORRA"
     "AE"="UNITED ARAB EMIRATES"
@@ -424,19 +466,16 @@ $CountryLookup = @{
     "ZM"="ZAMBIA"
     "ZW"="ZIMBABWE"
 }
-
-Do{
-$repeat3 = $false
-    $country = Read-Host "Enter employee's country"
-  If($country -eq "help"){
-    $CountryLookup.GetEnumerator() |sort value
-  }Else{
+    Do{
+        $country = Read-Host "Enter employee's country"
+     If($country -eq "help"){
+     $CountryLookup.GetEnumerator() |sort value
+     }Else{
         If($CountryLookup.ContainsValue($country.toupper()) -eq $false){
          Write-Host "Please enter a correct country name. For a full list of choices, type 'help'."
 }
 }
-}While ($CountryLookup.ContainsValue($country.toupper()) -eq $false)
-
+    }While ($CountryLookup.ContainsValue($country.toupper()) -eq $false)
 
 }If($x -contains "description"){
     $newuser.description = Read-Host "Enter a short employee description"
@@ -467,7 +506,6 @@ kicking me out of the loop.  I then changed the Until to a While, and it worked 
         Write-Host "Please enter a correct name."}
     Else{
         $mname = $manager.Name
-        #Need to add error handling#
         $confirm = Read-Host "You have chosen $mname as the manager.  Is this correct?" 
     }$newuser.manager = $manager
         }while ($confirm -eq "n")
@@ -542,16 +580,14 @@ $PW = ConvertTo-SecureString "Pa55w.rd" -AsPlainText -Force
 #Creates the new ADUser using a hashtable populated by the user's choices
 New-ADUser @newuser
 
-
 Write-Host "";"Temporary password is 'Pa55w.rd'.  The employee will be forced to change it upon first login."
 
 $repeat2 = $false
 
 Get-ADUser -Identity $newuser.samaccountname -Properties *
 
-
-
-
+#Removes the test user and clears the NewUser hashtable.
+get-aduser -filter "givenname -like 'test'" | remove-aduser; $newuser.clear()
 
 
 #Invalid selection from the simple/detailed input
@@ -560,16 +596,12 @@ Get-ADUser -Identity $newuser.samaccountname -Properties *
     $repeat2 = $true
     }
 #End of Do statement from beginning
- }}While ($repeat2 -eq $true)
+ }While ($repeat2 -eq $true)
 
 #Clears the NewUser hashtable for the next use
 #$newuser.clear()
 
-
-
-
 #Remove-ADUser -Identity test
-#get-aduser -filter "givenname -like 'test'" | remove-aduser; $newuser.clear()
 
 
 
