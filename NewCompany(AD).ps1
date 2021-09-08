@@ -53,12 +53,6 @@ Do{
   }While($testcomp.caption -notlike "*server*")
   
 #Asks the user what they want to install and installs it on the server selected above. 
-#Repeats until the user quits or finishes.
-
-################### CREATE A WAY THAT LETS THE USER KNOW WHAT HAS BEEN INSTALLED. STRIKETHROUGH? ###########################
-
-Do{
-
 Do{
 Install-Menu
 $repeat = $false 
@@ -80,17 +74,17 @@ $repeat = $false
         
         Default {"Please enter a valid selection";$repeat = $true}
     }
-}While ($repeat -eq $true)
+}
+While ($repeat -eq $true)
+
 
 
 If($Selection -eq "1"){
     Invoke-Command {Install-WindowsFeature -name ad-domain-services -IncludeManagementTools -ComputerName $server -whatif}
-    #$chosen = "INSTALLED" -ForegroundColor yellow
 }ElseIf($Selection -eq "2"){
     Invoke-Command {Install-WindowsFeature -name adfs-Federation -IncludeManagementTools -ComputerName $server -WhatIf}
 }ElseIf($Selection -eq "3"){
     Invoke-Command {Install-WindowsFeature -name ad-certificate -IncludeManagementTools -ComputerName $server -WhatIf} 
-    $chosen = 6>$null
 }ElseIf($Selection -eq "4"){
     Invoke-Command {Install-WindowsFeature -name dhcp -IncludeManagementTools -ComputerName $server -WhatIf} 
 }ElseIf($Selection -eq "5"){
@@ -103,9 +97,6 @@ If($Selection -eq "1"){
     Invoke-Command {Restart-Computer -ComputerName $server -WhatIf}
 }ElseIf($Selection -eq "q"){return}
 
-}While ($selection -ne "0" -and $selection -ne "q")
-
-Clear-Variable chosen
 
 
 
