@@ -1,10 +1,54 @@
-﻿##Prompts the user for the new employee's information to populate AD fields.##
+﻿##Script used for new AD environments. Populates OUs, users, and security groups. 
 ##Some simple error handling included.  This script assumes the user will try to enter correct data.##
 
+#Creates departments/OUs#
+<#So this is my first Try-Catch scenario.  I was convinced that the Catch needed a specific error to handle, but if left 
+blank, it will catch any error.  The most common issue I see with this is if the user encounters an error other than a 
+duplicate OU; it still tells the user its a duplicate. #>
 
+#Needs error handling for non-integers
+#ProtectedFromAccidentalDeletion for testing purposes only
+$deptnum = Read-Host "Number of departments/OUs to be created?"
+
+For($i=1;$i -le $deptnum;$i++){
+    
+    $d = Read-Host "Department name?"
+        
+    Try{
+    New-ADOrganizationalUnit -Name $d -path "DC=Adatum,DC=com" -ProtectedFromAccidentalDeletion $false 
+    } Catch {
+        Write-host "";"duplicate";""
+        $i--}
+    }
+    
+Write-Host "The following departments/OUs are now active:";""
+
+Get-ADOrganizationalUnit -filter * -Properties name | select -ExpandProperty name
+
+#Creates groups to assign users later
+#NEEDS ERROR HANDLING FOR GROUPCATEGORY,GROUPSCOPE
+
+$msg = "Do you want to create any groups (security or distribution)? [Y/N]"
+do {
+    $response = Read-Host -Prompt $msg
+    if ($response -eq 'y') {
+        $newgroup = @{}
+        $newgroup.name = Read-Host "Name of the new group?"
+        $newgroup.samaccountname = $newgroup.name
+        $newgroup.groupcategory = Read-Host "Security or Distribution?"
+        $newgroup.groupscope = Read-Host "DomainLocal, Global, or Universal?"
+        
+        New-ADGroup @newgroup 
+        get-adgroup -filter * | where name -eq $newgroup.name
+        Remove-ADGroup -Identity $newgroup.name
+    }
+} until ($response -eq 'n')
+
+
+##Prompts the user for the new employee's information to populate AD fields.##
 Do{
 Write-Host ""
-$version = Read-Host "Would you like to create a simple or detailed account?"
+$version = Read-Host "Would you like to create a simple or detailed user account?"
 
 If($version -eq "simple"){
 $repeat2 = $false

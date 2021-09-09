@@ -1,5 +1,8 @@
 ﻿#Script that allows the user to install windows features on a remote machine#
 
+<#I was recently show how to use Out-Gridview which essential does what I am trying to create with script here.  I inluded 
+it as an additional option to allow the user to search and install what they like.  I will use this for future ideas. #>
+
 #Checks if AD module is installed on local machine and installs if it is not.
 if (Get-Module -ListAvailable -Name ActiveDirectory) {
 } else {
@@ -19,6 +22,7 @@ Function Install-Menu
     Write-Host "5: Domain Name System (DNS)"
     Write-Host "6: Web Server (IIS)"
     Write-Host "7: All of the above"
+    Write-Host "8: Search for additional features. CTRL-Click enabled."
     Write-Host ""    
     Write-Host "0: Finished. Reboot machine"
     Write-Host "Q: Exits the installation"
@@ -87,6 +91,7 @@ $repeat = $false
         '5'{'Installing DNS.'}
         '6'{'Installing IIS.'}
         '7'{'Installing all features. (This may take a few momemnts)'}
+        '8'{'Deploying menu.'}
         '0'{'Rebooting machine.'}
         'Q'{'User quit the installation.'}
         
@@ -109,6 +114,9 @@ If($Selection -eq "1"){
     Invoke-Command {Install-WindowsFeature -name web-server -IncludeManagementTools -ComputerName $server -WhatIf} 
 }ElseIf($Selection -eq "7"){
     Invoke-Command {Install-WindowsFeature -name ad-domain-services,adfs-Federation,ad-certificate,dhcp,dns,web-server -IncludeManagementTools -ComputerName $server -WhatIf} 
+}ElseIf($Selection -eq "8"){
+    $search = Get-WindowsFeature -ComputerName $server | Out-GridView -OutputMode Multiple
+    Invoke-Command {Install-WindowsFeature -name $search -IncludeManagementTools -ComputerName $server -WhatIf} 
 }ElseIf($Selection -eq "0"){
     Invoke-Command {Restart-Computer -ComputerName $server -WhatIf}
 }ElseIf($Selection -eq "q"){return}
