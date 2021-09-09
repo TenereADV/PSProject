@@ -1,7 +1,12 @@
 ﻿#Script that allows the user to install windows features on a remote machine#
 
-#Import-Module ActiveDirectory
+#Checks if AD module is installed on local machine and installs if it is not.
+if (Get-Module -ListAvailable -Name ActiveDirectory) {
+} else {
+       Import-Module ActiveDirectory
+}
 
+#Menu function used to select which windows feature to install.
 Function Install-Menu
 {
     Param (
@@ -29,9 +34,17 @@ Windows Server #>
 Do{
     Do{
     write-host ""
-    $server = Read-Host "Which server would you like to setup? Type 'help' for a list of all machines. Type 'quit' to exit the script.";""
+    Write-Host "Which server would you like to setup?" -ForegroundColor cyan
+    Write-Host "Type" -NoNewline
+    Write-Host "'help'" -ForegroundColor Yellow -NoNewline 
+    Write-host "for a list of all machines. Type" -NoNewline
+    Write-Host "'quit'" -ForegroundColor Red -NoNewline
+    Write-Host "to exit the script.: " -NoNewline
+    $server = Read-Host
+
     If($server -eq 'help'){
-        get-adcomputer -filter * -properties Name | Select-Object -expandproperty Name | write-host -ForegroundColor yellow
+        Write-Host ""
+        get-adcomputer -filter * -properties Name | Select-Object -expandproperty Name | write-host -ForegroundColor Green
         } 
     If($server -eq "quit"){
        return}
@@ -48,16 +61,21 @@ Do{
     
     If($testcomp.caption -notlike "*server*"){
         $t = $testcomp.caption
-        write-host "";"You can only use this script on Windows Server operating systems. You have chosen a machine running $t.";""}
+        write-host "";"You can only use this script on Windows Server operating systems. You have chosen a machine running $t."}
     
   }While($testcomp.caption -notlike "*server*")
   
 #Asks the user what they want to install and installs it on the server selected above. 
+#Repeats until the user quits or finishes.
+
+Do{
+
 Do{
 Install-Menu
 $repeat = $false 
         Write-Host ""   
-    $Selection = Read-Host "What would you like to install?"
+    Write-Host "What would you like to install?: " -ForegroundColor Cyan -NoNewline
+    $Selection = Read-Host 
         Write-Host ""
 
     switch ($Selection)
@@ -74,11 +92,9 @@ $repeat = $false
         
         Default {"Please enter a valid selection";$repeat = $true}
     }
-}
-While ($repeat -eq $true)
+}While ($repeat -eq $true)
 
-
-
+#Installs the Window Feature the user selects (Includes WhatIfs for testing purposes)
 If($Selection -eq "1"){
     Invoke-Command {Install-WindowsFeature -name ad-domain-services -IncludeManagementTools -ComputerName $server -whatif}
 }ElseIf($Selection -eq "2"){
@@ -96,6 +112,8 @@ If($Selection -eq "1"){
 }ElseIf($Selection -eq "0"){
     Invoke-Command {Restart-Computer -ComputerName $server -WhatIf}
 }ElseIf($Selection -eq "q"){return}
+
+}While ($selection -ne "0" -and $selection -ne "q")
 
 
 
