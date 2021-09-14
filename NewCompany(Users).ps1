@@ -8,28 +8,61 @@ duplicate OU; it still tells the user its a duplicate. #>
 
 #Needs error handling for non-integers
 #ProtectedFromAccidentalDeletion for testing purposes only
-$deptnum = Read-Host "Number of departments/OUs to be created?"
+Clear-Host
 
-For($i=1;$i -le $deptnum;$i++){
+#Function used to allow assignment of a department. Displays department and number based on how many OUs exist.
+
+
+Function Dept-Menu
+{
+    Param (
+    )
+    $dept = Get-ADOrganizationalUnit -filter * -Properties name | select -ExpandProperty name
+    $deptlist = New-Object -TypeName "System.Collections.ArrayList"
     
-    $d = Read-Host "Department name?"
-        
-    Try{
-    New-ADOrganizationalUnit -Name $d -path "DC=Adatum,DC=com" -ProtectedFromAccidentalDeletion $false 
-    } Catch {
+    $i = 0
+    ForEach($d in $dept){
+        $i++;        ;
+        Write-Host $i "- "-NoNewline ;$d
+        $deptlist += $d}
+}
+
+Do{
+$input = Read-Host "Would you like to create any departments/OUs? [Y/N]`n(Type 'list' to display current OUs)"
+If($input -eq 'list'){
+    Write-Host ""
+    Get-ADOrganizationalUnit -filter * -Properties name | select -ExpandProperty name
+    }
+    Write-Host ""
+If($input -eq 'y' -or $input -eq 'yes'){
+    $deptnum = Read-Host "How many?"
+    Write-Host ""
+
+    For($i=1;$i -le $deptnum;$i++){
+    
+        $d = Read-Host "Department name? (Type 'back' to go back)"
+        If($d -eq 'b' -or $d -eq 'back'){
+            Write-Host ""
+            break}
+        Try{
+        New-ADOrganizationalUnit -Name $d -path "DC=Adatum,DC=com" -ProtectedFromAccidentalDeletion $false 
+        } Catch {
         Write-host "";"duplicate";""
         $i--}
     }
-    
+}ElseIf($input -eq 'n' -or $input -eq 'no'){
+}
+}Until ($input -eq 'n' -or $input -eq 'no')
+   
 Write-Host "The following departments/OUs are now active:";""
 
 Get-ADOrganizationalUnit -filter * -Properties name | select -ExpandProperty name
+Write-Host  ""
 
 #Creates groups to assign users later
 #NEEDS ERROR HANDLING FOR GROUPCATEGORY,GROUPSCOPE
-
 $msg = "Do you want to create any groups (security or distribution)? [Y/N]"
-do {
+Do {
     $response = Read-Host -Prompt $msg
     if ($response -eq 'y') {
         $newgroup = @{}
@@ -46,25 +79,17 @@ do {
 
 
 ##Prompts the user for the new employee's information to populate AD fields.##
+
+<#This user creation section is different from the previous becuase the departments are no long hard-coded; the user created them
+earlier in the script. I need to figure out how to display them to the user and assign them accordingly#>
 Do{
 Write-Host ""
 $version = Read-Host "Would you like to create a simple or detailed user account?"
 
+################################## Start of simple ADUser ###################################
+
 If($version -eq "simple"){
 $repeat2 = $false
-
-#Function used to allow assignment of a department.
-Function Dept-Menu
-{
-    Param (
-    )
-    Write-Host ""
-    Write-Host "1: Development"
-    Write-Host "2: IT"
-    Write-Host "3: Managers"
-    Write-Host "4: Research"
-    Write-Host "5: Sales"
-}
 
 <#This script was similar to the Manager script I made earlier.  It checks if the employee name that is entered matches a current employee
 and lets the user know either way.  Since I resued the Manager script, troubleshooting was much easier this time around.#>
@@ -83,46 +108,24 @@ $confirm = "n"
         Write-Host "";"User already exists. Please check your spelling and try again.";""
         $confirm = "n"}
     Else{$testname.count -eq "0" | Out-Null
-        Write-Host "";"User is not in the database. Proceed."
+        Write-Host "";"User is not in the database. Proceed.";""
         $confirm = "y"}
 
 }while ($confirm -eq "n")
-  
-    
+   
+#Switch used to assign a department.
+<#This now dynamically displays the OUs available and allows the user to select which OU they would like to assign the employee.
+It also reduced the amount of code I used because I now don't need an IF statement for every possible OU available.  Since the 
+user just created the OUs, there is no way to know ahead of time how many IFs you would need.#>
 
-#Switch used to assign a department. 
-Do{
 Dept-Menu
-$repeat = $false 
-    $Selection = Read-Host "Choose the employee's department"
-        Write-Host ""
 
-    switch ($Selection)
-    {
-        '1'{'Employee will be assigned to the Development department.'}
-        '2'{'Employee will be assigned to the IT department.'}
-        '3'{'Employee will be assigned to the Managers department.'}
-        '4'{'Employee will be assigned to the Research department.'}
-        '5'{'Employee will be assigned to the Sales department.'}
-        Default {"Please enter a valid selection";$repeat = $true}
-    }
-}
-While ($repeat -eq $true)
-
-#If statement to change the user's selection to a department
-If($Selection -eq "1"){
-    $Dept = "Development"}
-Elseif ($selection -eq "2"){
-    $Dept = "IT"}
-Elseif ($selection -eq "3"){
-    $Dept = "Managers"}
-Elseif ($selection -eq "4"){
-    $Dept = "Research"}
-Elseif ($selection -eq "5"){
-    $Dept = "Sales"}
+    [int]$Selection = Read-Host "Choose the employee's department"
+    $selection--
+    $Department = $deptlist[$Selection]
 
 #Assigns department to the employee's path
-$Path = "ou=$Dept,dc=adatum,dc=com"
+$Path = "ou=$Department,dc=adatum,dc=com"
 
 #Inserts blank line for formatting.
 Write-Host ""
@@ -142,11 +145,15 @@ Else{
 $PW = ConvertTo-SecureString "Pa55w.rd" -AsPlainText -Force
 
 #Creates the new ADUser
-new-aduser -GivenName $First -Surname $Last -name $name -DisplayName $Dname -SamAccountName $SamName -Path $Path -Department $Dept -Enabled $Enabled -AccountPassword $PW -ChangePasswordAtLogon $true
+new-aduser -GivenName $First -Surname $Last -name $name -DisplayName $Dname -SamAccountName $SamName -Path $Path -Department $Department -Enabled $Enabled -AccountPassword $PW -ChangePasswordAtLogon $true
 
 Write-Host "";"Temporary password is 'Pa55w.rd'.  The employee will be forced to change it upon first login."
 
+#Displays new employee's info
 Get-ADUser -Identity $SamName -Properties department
+
+#Assigns the new user to a group
+
 
 ########################Removes test user. Used for testing only.
 get-aduser -filter "samaccountname -like '$samname'" | remove-aduser
@@ -155,23 +162,12 @@ get-aduser -filter "samaccountname -like '$samname'" | remove-aduser
 
 
 
-#End of simple/detailed If statement. 
-################################## Start of detailed ADUser details ###################################
+#End of simple or detailed If statement. 
+################################## Start of detailed ADUser ###################################
 
 }ElseIf($version -eq 'detailed'){
 
 #Function used to allow assignment of a department.
-Function Dept-Menu
-{
-    Param (
-    )
-    Write-Host ""
-    Write-Host "1: Development"
-    Write-Host "2: IT"
-    Write-Host "3: Managers"
-    Write-Host "4: Research"
-    Write-Host "5: Sales"
-}
 
 $newuser = @{}
 
@@ -556,7 +552,12 @@ kicking me out of the loop.  I then changed the Until to a While, and it worked 
 }If($x -contains "manager"){
     Do{
     $confirm = "n"
-    $user = Read-Host "Enter the manager's first and last name"
+    Write-Host ""
+    $user = Read-Host "Enter the manager's first and last name: `n(Type 'q' or 'quit' to skip)"
+    If($user -eq "q" -or $user -eq "quit"){
+        break
+     Write-Host ""
+     }
     $manager = Get-ADUser -Filter "name -like '*$user*'"
     If($manager.Count -gt "1"){
         Write-Host "";"Please enter a more specific name.";""}
@@ -588,37 +589,14 @@ kicking me out of the loop.  I then changed the Until to a While, and it worked 
 #Switch used to assign a department. 
 Do{
 Dept-Menu
-$repeat = $false 
-    $Selection = Read-Host "Choose the employee's department"
-        Write-Host ""
 
-    switch ($Selection)
-    {
-        '1'{'Employee will be assigned to the Development department.'}
-        '2'{'Employee will be assigned to the IT department.'}
-        '3'{'Employee will be assigned to the Managers department.'}
-        '4'{'Employee will be assigned to the Research department.'}
-        '5'{'Employee will be assigned to the Sales department.'}
-        Default {"Please enter a valid selection";$repeat = $true}
-    }
-}
-While ($repeat -eq $true)
-
-#If statement to change the user's selection to a department
-If($Selection -eq "1"){
-    $newuser.department = "Development"}
-Elseif ($selection -eq "2"){
-    $newuser.department = "IT"}
-Elseif ($selection -eq "3"){
-    $newuser.department = "Managers"}
-Elseif ($selection -eq "4"){
-    $newuser.department = "Research"}
-Elseif ($selection -eq "5"){
-    $newuser.department = "Sales"}
+    [int]$Selection = Read-Host "Choose the employee's department"
+    $selection--
+    $newuser.department = $deptlist[$Selection]
+}Until ($newuser.department -ne $null)
 
 #Assigns department to the employee's path
-$dept = $newuser.department
-$newuser.Path = "ou=$dept,dc=adatum,dc=com"
+$newuser.path = "ou=$Department ,dc=adatum,dc=com"
 
 #Inserts blank line for formatting.
 Write-Host ""
@@ -640,11 +618,14 @@ $PW = ConvertTo-SecureString "Pa55w.rd" -AsPlainText -Force
 #Creates the new ADUser using a hashtable populated by the user's choices
 New-ADUser @newuser
 
-Write-Host "";"Temporary password is 'Pa55w.rd'.  The employee will be forced to change it upon first login."
-
+#Stops simple/detailed Do loop
 $repeat2 = $false
 
+#Displays newly created properties
 Get-ADUser -Identity $newuser.samaccountname -Properties *
+
+#Displays temp PW to user
+Write-Host "";"Temporary password is 'Pa55w.rd'.  The employee will be forced to change it upon first login."
 
 ############################Removes the test user and clears the NewUser hashtable. Used for testing only
 get-aduser -filter "name -like '*$checkname*'" | remove-aduser; $newuser.clear()
@@ -656,7 +637,8 @@ get-aduser -filter "name -like '*$checkname*'" | remove-aduser; $newuser.clear()
     $repeat2 = $true
     }
 #End of Do statement from beginning
- }While ($repeat2 -eq $true)
+
+}While ($repeat2 -eq $true)
 
 
 

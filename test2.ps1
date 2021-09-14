@@ -8,7 +8,6 @@ duplicate OU; it still tells the user its a duplicate. #>
 
 #Needs error handling for non-integers
 #ProtectedFromAccidentalDeletion for testing purposes only
-
 Clear-Host
 
 #Function used to allow assignment of a department. Displays department and number based on how many OUs exist.
@@ -553,7 +552,12 @@ kicking me out of the loop.  I then changed the Until to a While, and it worked 
 }If($x -contains "manager"){
     Do{
     $confirm = "n"
-    $user = Read-Host "Enter the manager's first and last name"
+    Write-Host ""
+    $user = Read-Host "Enter the manager's first and last name: `n(Type 'q' or 'quit' to skip)"
+    If($user -eq "q" -or $user -eq "quit"){
+        break
+     Write-Host ""
+     }
     $manager = Get-ADUser -Filter "name -like '*$user*'"
     If($manager.Count -gt "1"){
         Write-Host "";"Please enter a more specific name.";""}
